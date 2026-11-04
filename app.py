@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
@@ -9,6 +10,11 @@ from src.dataset import preparar_dataset, excluir_dataset, contar_imagens_datase
 
 st.set_page_config(page_title="SketchFinder", page_icon="🔎", layout="wide")
 
+def normalizar_caminho(caminho):
+    # Converte o caminho para o padrão do sistema operacional atual
+    caminho = caminho.replace("\\", os.sep).replace("/", os.sep)
+    return os.path.normpath(caminho)
+
 def exibir_resultados(resultados):
     # Exibe as imagens encontradas em ordem de similaridade
     if len(resultados) == 0:
@@ -18,8 +24,9 @@ def exibir_resultados(resultados):
     colunas = st.columns(len(resultados))
     for posicao, (coluna, resultado) in enumerate(zip(colunas, resultados), start=1):
         with coluna:
+            caminho = normalizar_caminho(resultado["caminho"])
             st.write(f"### {posicao}º")
-            st.image(resultado["caminho"], use_container_width=True)
+            st.image(caminho, use_container_width=True)
             percentual = resultado["similaridade"] * 100
             st.write(f"**{resultado['categoria']}**")
             st.write(f"Similaridade: {percentual:.2f}%")
@@ -95,6 +102,7 @@ if st.sidebar.button("🔄 Gerar/Regerar índices", use_container_width=True):
 
 with st.sidebar.expander("📊 Conteúdo do dataset"):
     quantidades = contar_por_categoria()
+
     if len(quantidades) == 0:
         st.write("Dataset vazio.")
     else:
