@@ -1,106 +1,177 @@
-# SketchFinder
+# AI Draw Battle
 
-O SketchFinder é uma aplicação desenvolvida em Python para busca de imagens utilizando fotografia, desenho livre ou descrição textual.
+AI Draw Battle é uma aplicação desenvolvida em Python que compara dois modelos de Inteligência Artificial na tentativa de identificar, em tempo real, um objeto desenhado pelo usuário.
 
-O projeto utiliza técnicas de Visão Computacional e Inteligência Artificial para representar imagens e textos através de vetores e encontrar os elementos mais semelhantes em um dataset.
+O usuário informa previamente o que será desenhado e, durante o desenho, CLIP e ResNet-18 realizam sucessivas tentativas de reconhecimento. O primeiro modelo que acertar a resposta vence a rodada.
 
 ## Funcionalidades
 
-- Busca por upload de imagem
-- Busca através de desenho feito com o mouse
-- Busca através de descrição textual
-- Comparação utilizando ResNet-18
-- Comparação utilizando CLIP
-- Comparação tradicional utilizando OpenCV
-- Ranking das cinco imagens mais semelhantes
-- Indexação prévia das imagens através de embeddings
-- Preparação automática do dataset
+- Desenho livre utilizando o mouse
+- Reconhecimento do desenho em tempo real
+- Competição entre CLIP e ResNet-18
+- Histórico de palpites durante a rodada
+- Encerramento automático quando um modelo acerta
+- Encerramento manual da rodada
+- Exibição da resposta correta ao final
+- Análise do quanto cada modelo estava relacionado à resposta correta
 
 ## Tecnologias utilizadas
 
 - Python
 - Streamlit
+- Streamlit Drawable Canvas
 - NumPy
-- OpenCV
 - Pillow
 - PyTorch
 - Torchvision
 - ResNet-18
-- CLIP
 - Transformers
-- Scikit-learn
+- CLIP
 
-## Dataset
-
-O projeto utiliza um subconjunto do CIFAR-100 contendo 240 imagens distribuídas em 8 categorias, com 30 imagens por categoria.
-
-Categorias utilizadas:
-
-- bicycle
-- bus
-- motorcycle
-- pickup_truck
-- train
-- house
-- lion
-- rocket
-
-O conjunto completo do CIFAR-100 é necessário somente caso seja desejado reconstruir o dataset. Para a utilização normal, as 240 imagens selecionadas já acompanham o projeto.
-
-## Embeddings
-
-Para evitar que todas as imagens precisem passar novamente pelos modelos a cada pesquisa, suas características são previamente calculadas.
-
-Os índices resultantes são armazenados nos arquivos:
-
-- embeddings.pkl
-- embeddings_clip.pkl
-
-Durante uma pesquisa, somente a entrada informada pelo usuário precisa ter seu embedding calculado. O embedding é comparado com os embeddings previamente armazenados utilizando similaridade de cosseno.
-
-## Execução
-
-Criar ambiente virtual:
-
-python -m venv .venv
-
-Ativar o ambiente virtual no Windows:
-
-.\.venv\Scripts\Activate.ps1
-
-Instalar as dependências:
-
-pip install -r requirements.txt
-
-Executar a aplicação:
-
-streamlit run app.py
-
-## Métodos utilizados
-
-### OpenCV
-
-O OpenCV é utilizado para processamento tradicional de imagens, incluindo conversão para escala de cinza e detecção de bordas através do algoritmo Canny.
+## Modelos utilizados
 
 ### ResNet-18
 
-A ResNet-18 pré-treinada é utilizada como extratora de características. A camada final de classificação é removida e a representação interna da imagem é utilizada como embedding.
+A ResNet-18 é utilizada com pesos pré-treinados no ImageNet.
+
+Durante o jogo, o desenho é processado pela rede e classificado entre as categorias conhecidas pelo modelo.
+
+A ResNet-18 realiza uma classificação fechada, ou seja, sua resposta precisa estar entre as categorias presentes em sua camada de classificação.
 
 ### CLIP
 
-O CLIP permite representar imagens e textos em um espaço vetorial compartilhado. Isso possibilita realizar buscas utilizando imagens, desenhos e descrições textuais.
+O CLIP é um modelo multimodal capaz de criar representações para imagens e textos em um espaço vetorial compartilhado.
 
-## Resultados observados
+Durante o início da rodada, a resposta informada pelo usuário e as categorias utilizadas como alternativas são transformadas em embeddings textuais.
 
-Nos testes realizados, o CLIP apresentou resultados consistentes na busca por texto e por fotografias.
+Enquanto o usuário desenha, o desenho é transformado em um embedding visual e comparado com os embeddings dos textos.
 
-Na busca através de desenhos, o desempenho varia de acordo com o objeto e com a forma como ele é representado. Objetos como casas e bicicletas apresentaram bons resultados, enquanto objetos visualmente semelhantes, como bicicletas e motocicletas, apresentaram maior possibilidade de confusão.
+O candidato com maior similaridade é utilizado como palpite do CLIP.
 
-A ResNet-18 apresentou bons resultados na comparação entre fotografias, porém demonstrou maior dificuldade na comparação entre desenhos simples e fotografias.
+Essa abordagem permite que o CLIP avalie conceitos informados em tempo de execução, mesmo que eles não façam parte de uma classificação fechada como ocorre na ResNet-18.
+
+## Funcionamento
+
+O usuário informa inicialmente o objeto que será desenhado.
+
+Exemplo:
+
+house
+
+A resposta fica escondida e uma nova rodada é iniciada.
+
+Durante o desenho, cada alteração relevante no canvas é enviada aos dois modelos.
+
+Fluxo simplificado:
+
+Desenho
+  |
+  +-- ResNet-18
+  |      |
+  |      +-- classificação
+  |      +-- palpite
+  |
+  +-- CLIP
+         |
+         +-- embedding visual
+         +-- comparação com embeddings textuais
+         +-- palpite
+
+Cada modelo realiza somente um palpite por atualização do desenho.
+
+Os palpites são armazenados e exibidos no histórico da rodada.
+
+Quando um dos modelos acerta a resposta, a rodada é encerrada automaticamente.
+
+O usuário também pode encerrar a rodada manualmente.
+
+## CLIP e classificação zero-shot
+
+O CLIP permite utilizar a resposta informada pelo usuário como um possível candidato durante a classificação.
+
+Por exemplo, se o usuário informar:
+
+dragon
+
+o termo pode ser transformado em um embedding textual e comparado com o desenho mesmo sem existir como uma classe específica da ResNet-18 utilizada pela aplicação.
+
+Isso permite demonstrar a diferença entre uma classificação fechada e uma abordagem zero-shot.
+
+## Histórico
+
+Durante uma rodada, cada atualização analisada gera:
+
+- um palpite do CLIP
+- um palpite da ResNet-18
+- o score correspondente de cada modelo
+
+Exemplo:
+
+1
+CLIP: envelope
+ResNet-18: envelope
+
+2
+CLIP: church
+ResNet-18: barn
+
+3
+CLIP: house
+ResNet-18: barn
+
+Nesse exemplo, o CLIP vence a rodada ao identificar corretamente house.
+
+## Encerramento da rodada
+
+Caso nenhum modelo acerte, o usuário pode encerrar a rodada manualmente.
+
+Ao final são apresentados:
+
+- resposta correta
+- último palpite do CLIP
+- último palpite da ResNet-18
+- histórico completo de palpites
+- similaridade do CLIP com a resposta correta
+- probabilidade atribuída pela ResNet-18 à resposta, quando essa resposta existir entre suas classes
+
+É importante observar que os valores apresentados pelos dois modelos possuem significados diferentes.
+
+Na ResNet-18 é apresentada uma probabilidade obtida a partir da distribuição de classificação.
+
+No CLIP é apresentada uma similaridade entre as representações do desenho e do texto. Essa similaridade não deve ser interpretada como uma probabilidade de classificação.
+
+## Execução
+
+### Criar ambiente virtual
+
+python -m venv .venv
+
+### Ativar ambiente virtual no Windows
+
+.\.venv\Scripts\Activate.ps1
+
+### Instalar dependências
+
+pip install -r requirements.txt
+
+### Executar
+
+streamlit run app.py
+
+## Estrutura
+
+AI-Draw-Battle/
+|
+|-- app.py
+|-- requirements.txt
+|-- README.md
+`-- .gitignore
 
 ## Limitações
 
-- A qualidade do resultado depende da representação do objeto.
-- Desenhos simplificados podem ser confundidos com objetos visualmente semelhantes.
-- As imagens originais do CIFAR-100 possuem baixa resolução.
-- Os modelos utilizados são pré-treinados e não foram especificamente treinados para busca entre desenhos e fotografias.
+- A ResNet-18 está limitada às categorias da classificação para a qual seus pesos foram treinados.
+- O CLIP precisa receber candidatos textuais para escolher seu palpite e não gera palavras livremente.
+- O reconhecimento depende da qualidade e do estágio atual do desenho.
+- Desenhos muito simples podem ser associados a objetos visualmente semelhantes.
+- Os scores produzidos pelo CLIP e pela ResNet-18 não representam a mesma métrica e não devem ser comparados diretamente.
+- O desempenho pode variar dependendo da execução em CPU ou GPU.
